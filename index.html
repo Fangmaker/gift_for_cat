@@ -1565,8 +1565,13 @@ body.route-mode .tree-marker,body.route-mode .animal-marker{visibility:hidden !i
     }
 
     // 拉取大理白族自治州真实行政区划边界（adcode 532900）
-    fetch('https://geo.datav.aliyun.com/areas_v3/bound/532900.json')
-      .then(function(r){return r.json();})
+    // 优先加载站内同源文件（避免跨域/被墙导致只剩椭圆 fallback），失败再退到阿里云接口
+    var BORDER_URL_LOCAL='assets/dali_boundary_532900.json';
+    var BORDER_URL_REMOTE='https://geo.datav.aliyun.com/areas_v3/bound/532900.json';
+    function loadBorderJSON(url){
+      return fetch(url).then(function(r){ if(!r.ok) throw new Error('http '+r.status); return r.json(); });
+    }
+    loadBorderJSON(BORDER_URL_LOCAL).catch(function(){ return loadBorderJSON(BORDER_URL_REMOTE); })
       .then(function(gj){
         const ring = extractOuterRing(gj);
         if(!ring || ring.length<3) return;
