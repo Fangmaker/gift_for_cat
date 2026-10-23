@@ -1479,8 +1479,8 @@ body.route-mode .tree-marker,body.route-mode .animal-marker{visibility:hidden !i
       wheelPxPerZoomLevel:120
     }).setView([25.75, 99.95], 8);
     window.__map=map;
-    // 进入即展示整个大理白族自治州全境（12县市尽收眼底）
-    map.fitBounds([[24.55, 98.65], [26.95, 101.15]], {padding:[60, 60]});
+    // 进入先落在洱海—大理古城核心区：低级别（8 级左右）卫星瓦片分辨率粗，全州视野会发虚
+    map.setView([25.72, 100.17], 10.5, {animate:false});
 
     // 大理白族自治州外接矩形（瓦片裁剪用，立即生效）
     const DALI_BBOX = L.latLngBounds([24.55,98.65],[26.95,101.15]);
@@ -1578,7 +1578,7 @@ body.route-mode .tree-marker,body.route-mode .animal-marker{visibility:hidden !i
         borderLayer = L.polygon(border, BORDER_STYLE).addTo(map);
         const b = L.latLngBounds(border);
         map.setMaxBounds(b.pad(0.12));
-        map.fitBounds(b, {padding:[60,60], animate:true, duration:0.8});
+        // 不再自动回到全州视野，保留进入时的核心区视野（低级别瓦片模糊）
       })
       .catch(function(){ /* fetch 失败则保留 fallback 边界 */ });
 
