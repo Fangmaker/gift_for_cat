@@ -1,0 +1,22 @@
+# 备份与临时文件（不发布）
+index.html.bak*
+*.bak
+*.bak.*
+stay_pairs.json
+_chk.html
+_main.js
+tmp/
+temp/
+
+# 智能体 / IDE 配置
+.codeartsdoer/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# 依赖与构建产物
+node_modules/
+dist/
+.env
+.env.*
