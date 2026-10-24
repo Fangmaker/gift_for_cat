@@ -4530,6 +4530,8 @@ body.route-mode .tree-marker,body.route-mode .animal-marker{visibility:hidden !i
 
   // ---------- 天气模式 ----------
   const WX_GEO_URL='https://geo.datav.aliyun.com/areas_v3/bound/532900_full.json';
+  // 站内同源副本（12 个县市），避免跨域或网络受限时天气模式的白族区县加载不出来
+  const WX_GEO_LOCAL='assets/dali_counties_532900.json';
   const WX_GEO_KEY='dali_geo_pref';
   var wxMode=false, wxOverlay=null, wxCountyData=[], wxWx=null, wxWxT=0, savedView=null, wxSvgRoot=null, wxPaneReady=false, wxScenicMk=[], wxCardOpenIdx=-1;
   var wxGeoLayer=null, wxShadowLayer=null, wxTipEl=null, wxChipsEl=null, wxHoverIdx=-1;
@@ -5450,11 +5452,14 @@ body.route-mode .tree-marker,body.route-mode .animal-marker{visibility:hidden !i
     if(cached){
       try{ buildWxOverlay(JSON.parse(cached)); return; }catch(e){}
     }
-    fetch(WX_GEO_URL).then(function(r){ return r.json(); }).then(function(gj){
+    function wxGeoTry(url){
+      return fetch(url).then(function(r){ if(!r.ok) throw new Error('http '+r.status); return r.json(); });
+    }
+    wxGeoTry(WX_GEO_LOCAL).catch(function(){ return wxGeoTry(WX_GEO_URL); }).then(function(gj){
       try{ localStorage.setItem(WX_GEO_KEY, JSON.stringify(gj)); }catch(e){}
       buildWxOverlay(gj);
     }).catch(function(){
-      if(!wxSvgRoot) showToast('行政区划加载失败，请检查网络');
+      if(!wxSvgRoot) showToast('区县边界加载失败，请检查网络后重试');
     });
   }
   function wxPane(){
