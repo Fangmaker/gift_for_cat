@@ -4944,7 +4944,7 @@ body.route-mode .tree-marker,body.route-mode .animal-marker{visibility:hidden !i
   }
   // ---- 功能1：屏幕层桌面宠物猫咪导游（深蓝边缘走廊溜达） ----
   var SC_MARGIN=40, SC_BAND=120;
-  var guideCat={x:0,y:0,targetX:0,targetY:0,mode:'sitting',timer:3,walkT:0,walkMax:10,frame:0,frameT:0,face:1,el:null,img:null,bub:null,_bt:null,stuck:false,_poseTk:0};
+  var guideCat={x:0,y:0,targetX:0,targetY:0,mode:'sitting',timer:3,walkT:0,walkMax:10,frame:0,frameT:0,face:1,el:null,img:null,bub:null,_bt:null,stuck:false,_poseTk:0,legs:[]};
   function playMeow(){
     var ac=window.__catAC;
     if(!ac) return;
@@ -5009,7 +5009,11 @@ body.route-mode .tree-marker,body.route-mode .animal-marker{visibility:hidden !i
       try{
         var p1=map.latLngToContainerPoint(L.latLng(24.55,98.65));
         var p2=map.latLngToContainerPoint(L.latLng(26.95,101.15));
-        rects.push({l:p1.x-30,t:p2.y-30,r:p2.x+30,b:p1.y+30});
+        var mrect={l:p1.x-30,t:p2.y-30,r:p2.x+30,b:p1.y+30};
+        // 放大到整个可视区都在大理范围内时，已经没有深蓝走廊；若仍把整屏当障碍，猫会被永久卡在角落不动
+        var vw=window.innerWidth, vh=window.innerHeight;
+        var coversAll=(mrect.l<=SC_MARGIN && mrect.t<=SC_MARGIN && mrect.r>=vw-SC_MARGIN && mrect.b>=vh-SC_MARGIN);
+        if(!coversAll) rects.push(mrect);
       }catch(e){}
     }
     ['topbar','wx-toggle','route-toggle','reco-toggle','travel-progress','legend','zoom-hint','top-right-col'].forEach(function(id){
@@ -5089,11 +5093,25 @@ body.route-mode .tree-marker,body.route-mode .animal-marker{visibility:hidden !i
     }
     if(!cand){
       guideCat.stuck=true;
+      guideCat.legs=[];
       guideCat.targetX=W/2; guideCat.targetY=H-SC_MARGIN-SC_BAND/2;
       return;
     }
     guideCat.stuck=false;
-    guideCat.targetX=cand.x; guideCat.targetY=cand.y;
+    // 走廊是紧贴屏幕四条边的窄带：跨边移动要先走到两边共用的拐角，否则会从地图内容区斜着穿过去
+    function edgeX(e){ return e===2?SC_MARGIN+SC_BAND/2:(e===3?W-SC_MARGIN-SC_BAND/2:null); }
+    function edgeY(e){ return e===0?SC_MARGIN+SC_BAND/2:(e===1?H-SC_MARGIN-SC_BAND/2:null); }
+    var e0=screenCatEdgeOf(guideCat.x,guideCat.y);
+    var e1=screenCatEdgeOf(cand.x,cand.y);
+    var legs=[];
+    if(e0!==e1){
+      var cx=(e0===2||e0===3)?edgeX(e0):edgeX(e1);
+      var cy=(e0===0||e0===1)?edgeY(e0):edgeY(e1);
+      if(cx!=null&&cy!=null) legs.push({x:cx,y:cy});
+    }
+    legs.push({x:cand.x,y:cand.y});
+    guideCat.legs=legs;
+    guideCat.targetX=legs[0].x; guideCat.targetY=legs[0].y;
   }
   function setCatPose(src){
     var img=guideCat.img;
@@ -5121,6 +5139,16 @@ body.route-mode .tree-marker,body.route-mode .animal-marker{visibility:hidden !i
     if(!guideCat.el) return;
     var W=window.innerWidth,H=window.innerHeight;
     if(guideCat.mode==='stuck'){
+      guideCat.timer-=dt;
+      if(guideCat.timer>0) return;
+      pickGuideCatTarget();
+      if(guideCat.stuck){ guideCat.timer=4; renderScreenCat(); return; }
+      guideCat.mode='walking';
+      guideCat.walkT=0; guideCat.walkMax=8+Math.random()*7;
+      guideCat.frame=0; guideCat.frameT=0;
+      guideCat.el.classList.add('walking');
+      setCatFrame(CAT_ASSETS.backMid);
+      renderScreenCat();
       return;
     }
     if(guideCat.mode==='sitting'||guideCat.mode==='sunbathing'){
@@ -5151,18 +5179,25 @@ body.route-mode .tree-marker,body.route-mode .animal-marker{visibility:hidden !i
       var dx=guideCat.targetX-guideCat.x, dy=guideCat.targetY-guideCat.y;
       var dist=Math.hypot(dx,dy);
       guideCat.walkT+=dt;
-      if(dist<4 || guideCat.walkT>=guideCat.walkMax){
+      if(dist<4 && guideCat.legs && guideCat.legs.length){
+        var nx2=guideCat.legs.shift();
+        guideCat.targetX=nx2.x; guideCat.targetY=nx2.y;
+        guideCat.walkT=0; guideCat.walkMax=8+Math.random()*7;
+        guideCat.frame=0; guideCat.frameT=0;
+        setCatFrame(CAT_ASSETS.backMid);
+      }else if(dist<4 || guideCat.walkT>=guideCat.walkMax){
         guideCat.mode='sitting';
         guideCat.timer=4+Math.random()*4;
+        guideCat.legs=[];
         guideCat.el.classList.remove('walking');
         setCatPose(CAT_ASSETS.mascot);
         if(Math.random()<0.2) playMeow();
       }else{
         var step=60*dt;
+        if(step>dist) step=dist;
         guideCat.x+=dx/dist*step;
         guideCat.y+=dy/dist*step;
-        if(Math.abs(dx)>Math.abs(dy)){ guideCat.face=(dx>0)?1:-1; }
-        else{ guideCat.face=1; }
+        if(Math.abs(dx)>2){ guideCat.face=(dx>0)?1:-1; }
         guideCat.frameT+=dt;
         if(guideCat.frameT>=0.2){
           guideCat.frameT=0;
